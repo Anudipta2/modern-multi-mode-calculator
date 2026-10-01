@@ -1,0 +1,38 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller build artifacts
+build/
+dist/
+*.manifest
+
+# Unit test & Coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local session history & temporary files
+calc_history.json
+*.json.bak
+*.log
+
+# Windows & OS artifacts
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# IDE and Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
