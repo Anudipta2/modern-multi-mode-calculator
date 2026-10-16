@@ -50,7 +50,7 @@ class StandardKeypad(QWidget):
 
         # --- Standard Grid Keypad ---
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(12)
 
         # Layout plan:
         # Row 0: AC,  ±,   %,   ÷
@@ -82,7 +82,7 @@ class StandardKeypad(QWidget):
 
             ("0", 4, 0, "btn-number", lambda: self.digit_pressed.emit("0")),
             (".", 4, 1, "btn-number", self.decimal_pressed.emit),
-            ("⌫", 4, 2, "btn-util", self.backspace_pressed.emit),
+            ("←", 4, 2, "btn-util", self.backspace_pressed.emit),
             ("=", 4, 3, "btn-equals", self.equals_pressed.emit),
         ]
 
@@ -244,7 +244,7 @@ class ScientificKeypad(QWidget):
         # Col 5: 9, 6, 3, %
         # Col 6: ÷, ×, −, +, =
         grid.addWidget(self._make_btn("AC", "btn-util", self.clear_all_pressed.emit), 0, 3)
-        grid.addWidget(self._make_btn("⌫", "btn-util", self.backspace_pressed.emit), 0, 4)
+        grid.addWidget(self._make_btn("←", "btn-util", self.backspace_pressed.emit), 0, 4)
         grid.addWidget(self._make_btn("±", "btn-util", self.toggle_sign_pressed.emit), 0, 5)
         grid.addWidget(self._make_btn("÷", "btn-operator", lambda: self.operator_pressed.emit("÷")), 0, 6)
 

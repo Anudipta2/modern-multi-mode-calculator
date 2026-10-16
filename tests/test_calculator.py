@@ -258,3 +258,96 @@ def test_formatters():
     assert format_number(1000000) == "1,000,000"
     assert format_indian_grouping(1000000) == "10,00,000"
     assert format_currency(1250, "₹") == "₹1,250.00"
+
+
+def test_percentage_parser_expressions():
+    evaluator = ExpressionEvaluator()
+
+    # 100 * 50% = 50
+    ok, res = evaluator.evaluate("100*50%")
+    assert ok and res == 50
+
+    ok, res = evaluator.evaluate("100 * 50%")
+    assert ok and res == 50
+
+    # 100 + 50% = 150
+    ok, res = evaluator.evaluate("100 + 50%")
+    assert ok and res == 150
+
+    # 100 - 20% = 80
+    ok, res = evaluator.evaluate("100 - 20%")
+    assert ok and res == 80
+
+    # Standalone 50% = 0.5
+    ok, res = evaluator.evaluate("50%")
+    assert ok and res == 0.5
+
+    # Division: 200 / 50% = 400
+    ok, res = evaluator.evaluate("200 / 50%")
+    assert ok and res == 400
+
+    # Parenthesized: (50 + 50)% = 1.0
+    ok, res = evaluator.evaluate("(50 + 50)%")
+    assert ok and res == 1.0
+
+
+def test_standard_engine_percentage():
+    engine = StandardCalculatorEngine()
+
+    # Flow 1: 100 * 50% = 50
+    engine.input_digit("1")
+    engine.input_digit("0")
+    engine.input_digit("0")
+    engine.input_operator("*")
+    engine.input_digit("5")
+    engine.input_digit("0")
+    engine.percentage()
+    assert engine.get_display() == "0.5"
+    ok, res = engine.calculate()
+    assert ok and res == "50"
+    assert engine.get_display() == "50"
+
+    # Flow 2: 100 + 10% = 110
+    engine.clear_all()
+    engine.input_digit("1")
+    engine.input_digit("0")
+    engine.input_digit("0")
+    engine.input_operator("+")
+    engine.input_digit("1")
+    engine.input_digit("0")
+    engine.percentage()
+    assert engine.get_display() == "10"
+    ok, res = engine.calculate()
+    assert ok and res == "110"
+
+    # Flow 3: 100 - 20% = 80
+    engine.clear_all()
+    engine.input_digit("1")
+    engine.input_digit("0")
+    engine.input_digit("0")
+    engine.input_operator("-")
+    engine.input_digit("2")
+    engine.input_digit("0")
+    engine.percentage()
+    assert engine.get_display() == "20"
+    ok, res = engine.calculate()
+    assert ok and res == "80"
+
+    # Flow 4: Pasted / direct entry "100*50%"
+    engine.clear_all()
+    engine.display_value = "100*50%"
+    engine.is_new_entry = False
+    ok, res = engine.calculate()
+    assert ok and res == "50"
+
+    # Flow 5: input_operator("%") delegates to percentage()
+    engine.clear_all()
+    engine.input_digit("1")
+    engine.input_digit("0")
+    engine.input_digit("0")
+    engine.input_operator("*")
+    engine.input_digit("5")
+    engine.input_digit("0")
+    engine.input_operator("%")
+    ok, res = engine.calculate()
+    assert ok and res == "50"

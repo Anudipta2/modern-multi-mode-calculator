@@ -1,5 +1,7 @@
+
 """Standard Calculator state engine."""
 
+import math
 from typing import Tuple, Optional
 from core.expression_parser import ExpressionEvaluator
 from core.formatter import format_number
@@ -62,12 +64,16 @@ class StandardCalculatorEngine:
                 self.display_value += "."
 
     def input_operator(self, op: str) -> None:
-        """Handle binary operators: +, −, ×, ÷, %"""
+        """Handle binary operators: +, −, ×, ÷"""
         if self.has_error:
             self.clear_all()
 
+        if op == "%":
+            self.percentage()
+            return
+
         # Map operator to visual glyph
-        op_map = {"+": "+", "-": "−", "−": "−", "*": "×", "×": "×", "/": "÷", "÷": "÷", "%": "%"}
+        op_map = {"+": "+", "-": "−", "−": "−", "*": "×", "×": "×", "/": "÷", "÷": "÷"}
         glyph = op_map.get(op, op)
 
         if self.is_new_entry and self.expression and self.expression[-1] in ("+", "−", "×", "÷"):
@@ -116,17 +122,21 @@ class StandardCalculatorEngine:
             expr_to_eval = f"{self.display_value} {op} {operand}"
         else:
             if not self.expression:
-                return True, self.display_value
-
-            # Extract last operator and operand for repeated equals before consuming
-            tokens = self.expression.strip().split()
-            if len(tokens) >= 2 and tokens[-1] in ("+", "−", "×", "÷"):
-                self.last_op_repeat = (tokens[-1], self.display_value)
-
-            if not self.is_new_entry:
-                expr_to_eval = f"{self.expression} {self.display_value}"
+                # If expression is empty but display_value has an expression (e.g. pasted '100*50%'):
+                if any(c in self.display_value for c in "+-/*×÷%^"):
+                    expr_to_eval = self.display_value
+                else:
+                    return True, self.display_value
             else:
-                expr_to_eval = self.expression.rstrip(" =")
+                tokens = self.expression.strip().split()
+                # If expression ends with an operator, ALWAYS append self.display_value
+                if tokens and tokens[-1] in ("+", "−", "×", "÷", "%"):
+                    self.last_op_repeat = (tokens[-1], self.display_value)
+                    expr_to_eval = f"{self.expression} {self.display_value}"
+                elif not self.is_new_entry:
+                    expr_to_eval = f"{self.expression} {self.display_value}"
+                else:
+                    expr_to_eval = self.expression.rstrip(" =")
 
         success, result = self.evaluator.evaluate(expr_to_eval)
 
@@ -177,11 +187,26 @@ class StandardCalculatorEngine:
             return
         try:
             val = float(self.display_value)
-            res = val / 100.0
-            if res.is_integer():
-                self.display_value = str(int(res))
+            tokens = self.expression.strip().split()
+            if tokens and tokens[-1] in ("+", "−", "-"):
+                # Commercial addition / subtraction: 100 + 10% -> 100 + 10
+                base = 0.0
+                try:
+                    base = float(tokens[-2])
+                except (IndexError, ValueError):
+                    base = val
+                pct_val = base * (val / 100.0)
+                if pct_val.is_integer():
+                    self.display_value = str(int(pct_val))
+                else:
+                    self.display_value = str(round(pct_val, 10))
             else:
-                self.display_value = str(round(res, 10))
+                # Standalone or multiplicative: 100 × 50% -> 0.5
+                res = val / 100.0
+                if res.is_integer():
+                    self.display_value = str(int(res))
+                else:
+                    self.display_value = str(round(res, 10))
             self.is_new_entry = True
         except ValueError:
             pass
@@ -216,25 +241,32 @@ class StandardCalculatorEngine:
     def memory_add(self) -> None:
         try:
             val = float(self.display_value)
+            if not math.isfinite(val):
+                return
             self.memory += val
             self.has_memory = True
             self.is_new_entry = True
-        except ValueError:
+        except (ValueError, OverflowError):
             pass
 
     def memory_subtract(self) -> None:
         try:
             val = float(self.display_value)
+            if not math.isfinite(val):
+                return
             self.memory -= val
             self.has_memory = True
             self.is_new_entry = True
-        except ValueError:
+        except (ValueError, OverflowError):
             pass
 
     def memory_store(self) -> None:
         try:
-            self.memory = float(self.display_value)
+            val = float(self.display_value)
+            if not math.isfinite(val):
+                return
+            self.memory = val
             self.has_memory = True
             self.is_new_entry = True
-        except ValueError:
+        except (ValueError, OverflowError):
             pass

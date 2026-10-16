@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QComboBox,
     QApplication,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QCursor
@@ -27,24 +28,26 @@ class HistoryPanel(QFrame):
         self.history_manager = history_manager
         self.setObjectName("HistoryPanel")
         self.setMinimumWidth(320)
+        self.setMaximumWidth(450)
         self._init_ui()
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(10)
 
         # Header Row
         header_layout = QHBoxLayout()
         title = QLabel("Calculation History")
-        title.setStyleSheet("font-size: 16px; font-weight: 700; color: #FFFFFF;")
+        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #FFFFFF;")
         header_layout.addWidget(title)
         header_layout.addStretch()
 
         close_btn = QPushButton("✕")
         close_btn.setProperty("class", "top-icon-btn")
-        close_btn.setMaximumWidth(32)
+        close_btn.setFixedSize(30, 30)
         close_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        close_btn.setToolTip("Close History (Esc)")
         close_btn.clicked.connect(self.close_requested.emit)
         header_layout.addWidget(close_btn)
         main_layout.addLayout(header_layout)
@@ -65,17 +68,23 @@ class HistoryPanel(QFrame):
         # Scrollable list of entries
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
         self.scroll_content = QWidget()
+        self.scroll_content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
         self.entries_layout = QVBoxLayout(self.scroll_content)
         self.entries_layout.setContentsMargins(0, 0, 4, 0)
         self.entries_layout.setSpacing(8)
-        self.entries_layout.addStretch()
+        self.entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
         self.scroll.setWidget(self.scroll_content)
-        main_layout.addWidget(self.scroll)
+        main_layout.addWidget(self.scroll, 1)
 
         # Footer Actions
         footer_layout = QHBoxLayout()
-        clear_btn = QPushButton("🗑️ Clear History")
+        clear_btn = QPushButton("Clear History")
         clear_btn.setProperty("class", "btn-action-secondary")
         clear_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         clear_btn.clicked.connect(self._clear_all)
@@ -84,13 +93,20 @@ class HistoryPanel(QFrame):
 
         self.refresh()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh()
+        self.scroll_content.adjustSize()
+
     def refresh(self):
         """Rebuild the history items list from the history manager."""
-        # Clear existing widgets
-        while self.entries_layout.count() > 1:
+        # Cleanly clear all widgets AND spacer items to prevent layout freezing
+        while self.entries_layout.count() > 0:
             item = self.entries_layout.takeAt(0)
             w = item.widget()
             if w:
+                w.hide()
+                w.setParent(None)
                 w.deleteLater()
 
         filter_text = self.filter_combo.currentText().lower()
@@ -100,18 +116,26 @@ class HistoryPanel(QFrame):
 
         if not entries:
             empty_lbl = QLabel("No calculation history yet.")
-            empty_lbl.setStyleSheet("color: #717684; font-size: 13px; padding: 20px; font-style: italic;")
+            empty_lbl.setStyleSheet("color: #717684; font-size: 13px; padding: 30px 10px; font-style: italic;")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.entries_layout.insertWidget(0, empty_lbl)
+            self.entries_layout.addWidget(empty_lbl)
+            self.scroll_content.adjustSize()
             return
 
         for idx, entry in enumerate(entries):
             card = self._create_entry_card(idx, entry)
-            self.entries_layout.insertWidget(idx, card)
+            self.entries_layout.addWidget(card)
+
+        # Force immediate layout calculation so cards render at full height without requiring manual resizing
+        self.scroll_content.adjustSize()
+        self.entries_layout.activate()
 
     def _create_entry_card(self, index: int, entry: dict) -> QFrame:
         card = QFrame()
         card.setProperty("class", "history-entry-card")
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        card.setMinimumHeight(76)
+
         layout = QVBoxLayout(card)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(4)
@@ -135,7 +159,7 @@ class HistoryPanel(QFrame):
 
         # Result
         res_lbl = QLabel(f"= {entry.get('result', '')}")
-        res_lbl.setStyleSheet("color: #FFFFFF; font-size: 17px; font-weight: 700;")
+        res_lbl.setStyleSheet("color: #FFFFFF; font-size: 16px; font-weight: 700;")
         res_lbl.setWordWrap(True)
         layout.addWidget(res_lbl)
 
@@ -169,7 +193,7 @@ class HistoryPanel(QFrame):
 
     def _copy_result(self, result: str, btn: QPushButton):
         QApplication.clipboard().setText(result)
-        btn.setText("✓")
+        btn.setText("Copied")
         QTimer.singleShot(1200, lambda: btn.setText("Copy"))
 
     def _delete_entry(self, index: int):

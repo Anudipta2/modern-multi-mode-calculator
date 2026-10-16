@@ -69,14 +69,22 @@ class BusinessView(QWidget):
         self.tabs = QTabWidget()
         self.tabs.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
-        self.tabs.addTab(self._create_gst_tab(), "💰 GST / Tax")
-        self.tabs.addTab(self._create_profit_loss_tab(), "📈 Profit & Loss")
-        self.tabs.addTab(self._create_discount_tab(), "🏷️ Discount")
-        self.tabs.addTab(self._create_emi_tab(), "🏦 Loan & EMI")
-        self.tabs.addTab(self._create_interest_tab(), "📊 Interest (SI/CI)")
-        self.tabs.addTab(self._create_ratios_tab(), "🔢 % & Ratios")
+        self.tabs.addTab(self._wrap_tab_in_scroll(self._create_gst_tab()), "GST / Tax")
+        self.tabs.addTab(self._wrap_tab_in_scroll(self._create_profit_loss_tab()), "Profit & Loss")
+        self.tabs.addTab(self._wrap_tab_in_scroll(self._create_discount_tab()), "Discount")
+        self.tabs.addTab(self._wrap_tab_in_scroll(self._create_emi_tab()), "Loan & EMI")
+        self.tabs.addTab(self._wrap_tab_in_scroll(self._create_interest_tab()), "Interest")
+        self.tabs.addTab(self._create_ratios_tab(), "Ratios & %")
 
         main_layout.addWidget(self.tabs)
+
+    def _wrap_tab_in_scroll(self, content_widget: QWidget) -> QScrollArea:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("background: transparent; border: none;")
+        scroll.setWidget(content_widget)
+        return scroll
 
     def _on_currency_changed(self, code: str):
         self.engine.set_currency(code)
@@ -173,11 +181,11 @@ class BusinessView(QWidget):
 
         # Action Buttons
         btn_box = QHBoxLayout()
-        btn_copy = QPushButton("📋 Copy Result")
+        btn_copy = QPushButton("Copy Result")
         btn_copy.setProperty("class", "btn-action-secondary")
         btn_copy.clicked.connect(lambda: self._copy_text(self.gst_final_label.text(), btn_copy))
 
-        btn_hist = QPushButton("💾 Log to History")
+        btn_hist = QPushButton("Save to History")
         btn_hist.setProperty("class", "btn-action-secondary")
         btn_hist.clicked.connect(self._log_gst_to_history)
 
@@ -266,11 +274,11 @@ class BusinessView(QWidget):
         res_layout.addWidget(self.pl_details_label)
 
         btn_box = QHBoxLayout()
-        btn_copy = QPushButton("📋 Copy Result")
+        btn_copy = QPushButton("Copy Result")
         btn_copy.setProperty("class", "btn-action-secondary")
         btn_copy.clicked.connect(lambda: self._copy_text(self.pl_result_label.text(), btn_copy))
 
-        btn_hist = QPushButton("💾 Log to History")
+        btn_hist = QPushButton("Save to History")
         btn_hist.setProperty("class", "btn-action-secondary")
         btn_hist.clicked.connect(self._log_pl_to_history)
 
@@ -350,11 +358,11 @@ class BusinessView(QWidget):
         res_layout.addWidget(self.disc_details_label)
 
         btn_box = QHBoxLayout()
-        btn_copy = QPushButton("📋 Copy Result")
+        btn_copy = QPushButton("Copy Result")
         btn_copy.setProperty("class", "btn-action-secondary")
         btn_copy.clicked.connect(lambda: self._copy_text(self.disc_final_label.text(), btn_copy))
 
-        btn_hist = QPushButton("💾 Log to History")
+        btn_hist = QPushButton("Save to History")
         btn_hist.setProperty("class", "btn-action-secondary")
         btn_hist.clicked.connect(self._log_discount_to_history)
 
@@ -439,11 +447,11 @@ class BusinessView(QWidget):
         res_layout.addWidget(self.emi_details_label)
 
         btn_box = QHBoxLayout()
-        btn_copy = QPushButton("📋 Copy EMI")
+        btn_copy = QPushButton("Copy EMI")
         btn_copy.setProperty("class", "btn-action-secondary")
         btn_copy.clicked.connect(lambda: self._copy_text(self.emi_monthly_label.text(), btn_copy))
 
-        btn_hist = QPushButton("💾 Log to History")
+        btn_hist = QPushButton("Save to History")
         btn_hist.setProperty("class", "btn-action-secondary")
         btn_hist.clicked.connect(self._log_emi_to_history)
 
@@ -550,11 +558,11 @@ class BusinessView(QWidget):
         res_layout.addWidget(self.intr_details_label)
 
         btn_box = QHBoxLayout()
-        btn_copy = QPushButton("📋 Copy Total")
+        btn_copy = QPushButton("Copy Total")
         btn_copy.setProperty("class", "btn-action-secondary")
         btn_copy.clicked.connect(lambda: self._copy_text(self.intr_total_label.text(), btn_copy))
 
-        btn_hist = QPushButton("💾 Log to History")
+        btn_hist = QPushButton("Save to History")
         btn_hist.setProperty("class", "btn-action-secondary")
         btn_hist.clicked.connect(self._log_interest_to_history)
 
@@ -620,7 +628,7 @@ class BusinessView(QWidget):
         card1 = QFrame()
         card1.setProperty("class", "history-entry-card")
         c1_layout = QVBoxLayout(card1)
-        c1_layout.addWidget(QLabel("<b>1. What is X% of Y?</b>"))
+        c1_layout.addWidget(QLabel("<b>Percentage of Value (X% of Y)</b>"))
         row1 = QHBoxLayout()
         self.pct_x_input = QLineEdit("25")
         self.pct_x_input.setProperty("class", "business-input")
@@ -645,7 +653,7 @@ class BusinessView(QWidget):
         card2 = QFrame()
         card2.setProperty("class", "history-entry-card")
         c2_layout = QVBoxLayout(card2)
-        c2_layout.addWidget(QLabel("<b>2. Percentage Increase / Decrease (from Old to New)</b>"))
+        c2_layout.addWidget(QLabel("<b>Percentage Change (Old → New)</b>"))
         row2 = QHBoxLayout()
         self.chg_old_input = QLineEdit("500")
         self.chg_old_input.setProperty("class", "business-input")
@@ -670,7 +678,7 @@ class BusinessView(QWidget):
         card3 = QFrame()
         card3.setProperty("class", "history-entry-card")
         c3_layout = QVBoxLayout(card3)
-        c3_layout.addWidget(QLabel("<b>3. Ratio Simplification (A : B)</b>"))
+        c3_layout.addWidget(QLabel("<b>Ratio Simplification (A : B)</b>"))
         row3 = QHBoxLayout()
         self.ratio_a_input = QLineEdit("48")
         self.ratio_a_input.setProperty("class", "business-input")
@@ -732,5 +740,5 @@ class BusinessView(QWidget):
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
         orig = btn.text()
-        btn.setText("✓ Copied!")
+        btn.setText("Copied")
         QTimer.singleShot(1500, lambda: btn.setText(orig))

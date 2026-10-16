@@ -1,3 +1,4 @@
+
 """Scientific Calculator state engine."""
 
 import math
@@ -90,9 +91,13 @@ class ScientificCalculatorEngine:
         self.last_op_repeat = None
 
     def input_operator(self, op: str) -> None:
-        """Handle binary operators: +, −, ×, ÷, ^ (pow), %, nPr, nCr"""
+        """Handle binary operators: +, −, ×, ÷, ^ (pow), nPr, nCr"""
         if self.has_error:
             self.clear_all()
+
+        if op == "%":
+            self.percentage()
+            return
 
         op_map = {
             "+": "+",
@@ -103,7 +108,6 @@ class ScientificCalculatorEngine:
             "/": "÷",
             "÷": "÷",
             "^": "^",
-            "%": "%",
             "nPr": "P",
             "nCr": "C",
         }
@@ -208,16 +212,19 @@ class ScientificCalculatorEngine:
             expr_to_eval = f"{self.display_value} {op} {operand}"
         else:
             if not self.expression:
-                return True, self.display_value
-
-            tokens = self.expression.strip().split()
-            if len(tokens) >= 2 and tokens[-1] in ("+", "−", "×", "÷", "^", "%", "P", "C"):
-                self.last_op_repeat = (tokens[-1], self.display_value)
-
-            if not self.is_new_entry:
-                expr_to_eval = f"{self.expression} {self.display_value}"
+                if any(c in self.display_value for c in "+-/*×÷%^PC"):
+                    expr_to_eval = self.display_value
+                else:
+                    return True, self.display_value
             else:
-                expr_to_eval = self.expression.rstrip(" =")
+                tokens = self.expression.strip().split()
+                if tokens and tokens[-1] in ("+", "−", "×", "÷", "^", "%", "P", "C"):
+                    self.last_op_repeat = (tokens[-1], self.display_value)
+                    expr_to_eval = f"{self.expression} {self.display_value}"
+                elif not self.is_new_entry:
+                    expr_to_eval = f"{self.expression} {self.display_value}"
+                else:
+                    expr_to_eval = self.expression.rstrip(" =")
 
         success, result = self.evaluator.evaluate(expr_to_eval)
         if success:
@@ -255,6 +262,34 @@ class ScientificCalculatorEngine:
         else:
             self.display_value = "-" + self.display_value
 
+    def percentage(self) -> None:
+        """Calculate percentage of current entry."""
+        if self.has_error:
+            return
+        try:
+            val = float(self.display_value)
+            tokens = self.expression.strip().split()
+            if tokens and tokens[-1] in ("+", "−", "-"):
+                base = 0.0
+                try:
+                    base = float(tokens[-2])
+                except (IndexError, ValueError):
+                    base = val
+                pct_val = base * (val / 100.0)
+                if pct_val.is_integer():
+                    self.display_value = str(int(pct_val))
+                else:
+                    self.display_value = str(round(pct_val, 10))
+            else:
+                res = val / 100.0
+                if res.is_integer():
+                    self.display_value = str(int(res))
+                else:
+                    self.display_value = str(round(res, 10))
+            self.is_new_entry = True
+        except ValueError:
+            pass
+
     def clear_all(self) -> None:
         self.expression = ""
         self.display_value = "0"
@@ -283,25 +318,32 @@ class ScientificCalculatorEngine:
     def memory_add(self) -> None:
         try:
             val = float(self.display_value)
+            if not math.isfinite(val):
+                return
             self.memory += val
             self.has_memory = True
             self.is_new_entry = True
-        except ValueError:
+        except (ValueError, OverflowError):
             pass
 
     def memory_subtract(self) -> None:
         try:
             val = float(self.display_value)
+            if not math.isfinite(val):
+                return
             self.memory -= val
             self.has_memory = True
             self.is_new_entry = True
-        except ValueError:
+        except (ValueError, OverflowError):
             pass
 
     def memory_store(self) -> None:
         try:
-            self.memory = float(self.display_value)
+            val = float(self.display_value)
+            if not math.isfinite(val):
+                return
+            self.memory = val
             self.has_memory = True
             self.is_new_entry = True
-        except ValueError:
+        except (ValueError, OverflowError):
             pass

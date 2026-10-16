@@ -58,9 +58,9 @@ def main():
     font.setPointSize(10)
     app.setFont(font)
 
-    # Dark base palette to prevent bright flashing during widget instantiation
+    # Dark base palette with transparent window to support true glassmorphism
     palette = QPalette()
-    palette.setColor(QPalette.ColorRole.Window, QColor("#121316"))
+    palette.setColor(QPalette.ColorRole.Window, QColor(0, 0, 0, 0))
     palette.setColor(QPalette.ColorRole.WindowText, QColor("#F5F5F7"))
     palette.setColor(QPalette.ColorRole.Base, QColor("#1A1C22"))
     palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#22252E"))

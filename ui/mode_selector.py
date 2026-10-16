@@ -72,7 +72,7 @@ class ModeSelector(QFrame):
         layout.addStretch()
 
         # History Drawer Toggle Button
-        self.history_btn = QPushButton("🕒 History")
+        self.history_btn = QPushButton("History")
         self.history_btn.setProperty("class", "top-icon-btn")
         self.history_btn.setCheckable(True)
         self.history_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))

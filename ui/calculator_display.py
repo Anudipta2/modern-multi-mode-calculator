@@ -25,16 +25,17 @@ class CalculatorDisplay(QFrame):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 16)
-        layout.setSpacing(6)
+        layout.setContentsMargins(16, 8, 16, 10)
+        layout.setSpacing(4)
 
         # --- Top Status & Quick Action Row ---
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
-        # Mode Badge
-        self.mode_badge = QLabel("STANDARD")
+        # Mode Badge (discreet, hidden for standard to avoid clutter)
+        self.mode_badge = QLabel("")
         self.mode_badge.setProperty("class", "badge-label-info")
+        self.mode_badge.hide()
         top_row.addWidget(self.mode_badge)
 
         # Angle Mode Badge (for Scientific)
@@ -56,8 +57,8 @@ class CalculatorDisplay(QFrame):
 
         top_row.addStretch()
 
-        # Copy Result Button
-        self.copy_btn = QPushButton("📋 Copy")
+        # Copy Result Button (clean, minimalist)
+        self.copy_btn = QPushButton("Copy")
         self.copy_btn.setProperty("class", "top-icon-btn")
         self.copy_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.copy_btn.setToolTip("Copy result to clipboard")
@@ -82,7 +83,12 @@ class CalculatorDisplay(QFrame):
 
     def set_mode_badge(self, mode_name: str, show_angle: bool = False, angle_mode: str = "DEG"):
         """Update top badge for current calculator mode."""
-        self.mode_badge.setText(mode_name.upper())
+        if mode_name.upper() != "STANDARD":
+            self.mode_badge.setText(mode_name.upper())
+            self.mode_badge.show()
+        else:
+            self.mode_badge.hide()
+
         if show_angle:
             self.angle_badge.setText(angle_mode)
             self.angle_badge.show()
@@ -111,17 +117,17 @@ class CalculatorDisplay(QFrame):
         font = self.result_label.font()
 
         if length <= 9:
-            font.setPointSize(38)
+            font.setPointSize(46)
         elif length <= 13:
-            font.setPointSize(30)
+            font.setPointSize(34)
         elif length <= 18:
-            font.setPointSize(24)
+            font.setPointSize(26)
         elif length <= 25:
-            font.setPointSize(19)
+            font.setPointSize(20)
         else:
-            font.setPointSize(15)
+            font.setPointSize(16)
 
-        font.setWeight(QFont.Weight.Bold)
+        font.setWeight(QFont.Weight.Light)
         self.result_label.setFont(font)
 
     def get_result(self) -> str:
@@ -135,6 +141,7 @@ class CalculatorDisplay(QFrame):
         clipboard = QApplication.clipboard()
         text = self.result_label.text()
         clipboard.setText(text)
-        self.copy_btn.setText("✓ Copied!")
-        QTimer.singleShot(1500, lambda: self.copy_btn.setText("📋 Copy"))
+        self.copy_btn.setText("Copied")
+        QTimer.singleShot(1500, lambda: self.copy_btn.setText("Copy"))
+        self.copy_requested.emit()
         self.copy_requested.emit()

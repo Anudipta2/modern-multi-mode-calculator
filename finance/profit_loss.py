@@ -7,8 +7,26 @@ from typing import Dict, Union
 def _to_decimal(val: Union[int, float, str, Decimal]) -> Decimal:
     if isinstance(val, Decimal):
         return val
-    cleaned = str(val).replace(",", "").replace("%", "").strip()
-    return Decimal(cleaned) if cleaned else Decimal("0")
+    s = str(val).strip()
+    if not s:
+        return Decimal("0")
+    try:
+        cleaned = (
+            s
+            .replace("₹", "")
+            .replace("$", "")
+            .replace("€", "")
+            .replace("£", "")
+            .replace("¥", "")
+            .replace(",", "")
+            .replace("%", "")
+            .strip()
+        )
+        if not cleaned:
+            raise ValueError(f"Invalid numeric input: '{val}'")
+        return Decimal(cleaned)
+    except Exception:
+        raise ValueError(f"Invalid numeric input: '{val}'")
 
 
 def _round_currency(val: Decimal) -> Decimal:

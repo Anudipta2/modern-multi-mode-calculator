@@ -103,3 +103,75 @@ def test_business_view_calculations(qapp):
     assert "Final Total:" in bv.gst_final_label.text()
     assert "5,900" in bv.gst_final_label.text()
     win.close()
+
+
+def test_percentage_ui_flow(qapp):
+    win = ModernCalculatorWindow()
+    win.set_mode(MODE_STANDARD)
+
+    # 100 * 50% = 50
+    win._on_standard_digit("1")
+    win._on_standard_digit("0")
+    win._on_standard_digit("0")
+    win._on_standard_operator("×")
+    win._on_standard_digit("5")
+    win._on_standard_digit("0")
+    win._on_standard_percentage()
+    assert win.display_card.get_result() == "0.5"
+
+    win._on_standard_equals()
+    assert win.display_card.get_result() == "50"
+    win.close()
+
+
+def test_percentage_keyboard_event(qapp):
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtCore import QEvent, Qt
+
+    win = ModernCalculatorWindow()
+    win.set_mode(MODE_STANDARD)
+
+    # Simulate keyboard typing: 1, 0, 0, *, 5, 0, %
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_1, Qt.KeyboardModifier.NoModifier, "1"))
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_0, Qt.KeyboardModifier.NoModifier, "0"))
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_0, Qt.KeyboardModifier.NoModifier, "0"))
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Asterisk, Qt.KeyboardModifier.NoModifier, "*"))
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_5, Qt.KeyboardModifier.NoModifier, "5"))
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_0, Qt.KeyboardModifier.NoModifier, "0"))
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Percent, Qt.KeyboardModifier.NoModifier, "%"))
+
+    assert win.display_card.get_result() == "0.5"
+
+    win.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier, "\r"))
+    assert win.display_card.get_result() == "50"
+    win.close()
+
+
+def test_glass_title_bar_controls(qapp):
+    win = ModernCalculatorWindow()
+    win.show()
+
+    # Verify glass title bar is present and configured
+    assert win.title_bar is not None
+    assert "40%" in win.title_bar.btn_opacity.text()
+
+    # Cycle opacity presets: 40% -> 60% -> 25% -> 40%
+    win._cycle_glass_opacity()
+    assert "60%" in win.title_bar.btn_opacity.text()
+
+    win._cycle_glass_opacity()
+    assert "25%" in win.title_bar.btn_opacity.text()
+
+    win._cycle_glass_opacity()
+    assert "40%" in win.title_bar.btn_opacity.text()
+
+    # Toggle Pin
+    win.title_bar.btn_pin.click()
+    assert win.title_bar.is_pinned is True
+
+    win.title_bar.btn_pin.click()
+    assert win.title_bar.is_pinned is False
+
+    win.close()
+
+

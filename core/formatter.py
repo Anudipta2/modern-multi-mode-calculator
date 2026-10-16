@@ -33,12 +33,32 @@ def format_number(val, max_digits=12, use_indian_grouping=False) -> str:
         if math.isinf(val):
             return "Infinity" if val > 0 else "-Infinity"
 
+    # Handle integers separately to prevent float conversion OverflowError
+    if isinstance(val, int):
+        if abs(val) >= 10**15:
+            try:
+                float_val = float(val)
+                return f"{float_val:.6e}".replace("e+0", "e+").replace("e-0", "e-")
+            except OverflowError:
+                is_neg = val < 0
+                s = str(abs(val))
+                mantissa = s[0] + ("." + s[1:7] if len(s) > 1 else "")
+                exponent = len(s) - 1
+                prefix = "-" if is_neg else ""
+                return f"{prefix}{mantissa}e+{exponent}"
+        if use_indian_grouping:
+            return format_indian_grouping(val)
+        return f"{val:,}"
+
     # Convert to float or int for magnitude check
     abs_val = abs(val)
 
     # Scientific notation for very large or tiny non-zero numbers
     if abs_val != 0 and (abs_val >= 1e15 or abs_val < 1e-6):
-        return f"{val:.6e}".replace("e+0", "e+").replace("e-0", "e-")
+        try:
+            return f"{val:.6e}".replace("e+0", "e+").replace("e-0", "e-")
+        except OverflowError:
+            return "Infinity" if val > 0 else "-Infinity"
 
     # Round to avoid float representation artifacts (e.g., 0.1 + 0.2 = 0.30000000000000004)
     if isinstance(val, float):

@@ -1,3 +1,4 @@
+
 """Safe mathematical expression parser using Python AST.
 
 Evaluates mathematical expressions without using unsafe unrestricted eval().
@@ -162,6 +163,20 @@ class ExpressionEvaluator:
             return -1
         return 0
 
+    def _mod(self, a: float, b: float) -> float:
+        if b == 0:
+            raise ZeroDivisionError("Cannot divide by zero (modulo)")
+        return a % b
+
+    def _root(self, x: float, n: float) -> float:
+        if n == 0:
+            raise ZeroDivisionError("Root degree cannot be zero")
+        if x < 0:
+            if float(n).is_integer() and int(n) % 2 != 0:
+                return -math.pow(-x, 1.0 / n)
+            raise ValueError("Real numbers only: negative radicand with even root")
+        return math.pow(x, 1.0 / n)
+
     def _get_function_map(self):
         return {
             "sin": self._sin,
@@ -181,6 +196,7 @@ class ExpressionEvaluator:
             "atanh": self._atanh,
             "sqrt": math.sqrt,
             "cbrt": self._cbrt,
+            "root": self._root,
             "log": self._log_base,
             "log10": math.log10,
             "log2": math.log2,
@@ -191,6 +207,7 @@ class ExpressionEvaluator:
             "ceil": math.ceil,
             "round": round,
             "sign": self._sign,
+            "mod": self._mod,
             "factorial": self._factorial,
             "fact": self._factorial,
             "nPr": self._nPr,
@@ -228,29 +245,44 @@ class ExpressionEvaluator:
         # Convert nCr syntax: e.g., 10C3 or 10 c 3 -> nCr(10, 3)
         s = re.sub(r"(\d+)\s*[Cc]\s*(\d+)", r"nCr(\1, \2)", s)
 
+        # Convert mod syntax: e.g. 10 mod 3 -> mod(10, 3)
+        s = re.sub(r"(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\([^\)]+\))\s+mod\s+(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\([^\)]+\))", r"mod(\1, \2)", s, flags=re.IGNORECASE)
+
         # Convert factorial postfix: e.g. 5! -> factorial(5), (2+3)! -> factorial(2+3)
-        # Handle chained factorials like 5!! -> factorial(factorial(5))
+        # Cap chained factorials to prevent ReDoS
+        s = re.sub(r"!{4,}", "!!!", s)
         while "!" in s:
-            new_s = re.sub(r"(\((?:[^)(]+|\([^)(]*\))*\)|\d+(?:\.\d+)?)\s*!", r"factorial(\1)", s)
+            new_s = re.sub(r"(\((?:[^)(]+|\([^)(]*\))*\)|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*!", r"factorial(\1)", s)
             if new_s == s:
                 break
             s = new_s
 
-        # Percentage calculations in expressions:
-        # e.g. 200 + 10% -> 200 + (200 * 10 / 100)
-        # e.g. 200 * 10% -> 200 * (10 / 100)
-        # First handle standard single number percentage: number%
-        s = re.sub(r"(\d+(?:\.\d+)?)\s*%", r"(\1 / 100)", s)
+        # Percentage & Modulo calculations in expressions:
+        # 1. Base addition/subtraction: A + B% -> A + (A * B / 100), A - B% -> A - (A * B / 100)
+        s = re.sub(
+            r"(\((?:[^)(]+|\([^)(]*\))*\)|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([+\-])\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*%",
+            r"\1 \2 (\1 * \3 / 100)",
+            s,
+        )
+        # 2. Binary modulo: e.g. 10 % 3 or 10 % (2+1) -> mod(10, 3) or mod(10, (2+1))
+        s = re.sub(
+            r"(\((?:[^)(]+|\([^)(]*\))*\)|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*%\s*(\((?:[^)(]+|\([^)(]*\))*\)|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)",
+            r"mod(\1, \2)",
+            s,
+        )
+        # 3. Multiplicative or standalone percentages: number% or (...)% -> (... / 100)
+        s = re.sub(r"(\((?:[^)(]+|\([^)(]*\))*\)|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*%", r"(\1 / 100)", s)
 
         # Implicit multiplication:
         # 1. Number (not part of an identifier) followed by parenthesis: 2(3) -> 2*(3)
-        s = re.sub(r"(?<![a-zA-Z0-9_.])(\d+(?:\.\d+)?)\s*\(", r"\1*(", s)
+        s = re.sub(r"(?<![a-zA-Z0-9_.])(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*\(", r"\1*(", s)
         # 2. Closing parenthesis followed by opening: )( -> )*(
         s = re.sub(r"\)\s*\(", r")*(", s)
         # 3. Closing parenthesis followed by number: )2 -> )*2
-        s = re.sub(r"\)\s*(\d+(?:\.\d+)?)", r")*\1", s)
-        # 4. Number followed by constant or function: 2pi -> 2*pi, 3sin(x) -> 3*sin(x)
-        s = re.sub(r"(?<![a-zA-Z0-9_.])(\d+(?:\.\d+)?)\s*([a-zA-Z_]\w*)", r"\1*\2", s)
+        s = re.sub(r"\)\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", r")*\1", s)
+        # 4. Number followed by constant or function: 2pi -> 2*pi, 3sin(x) -> 3*sin(x), 2e -> 2*e
+        # Uses negative lookahead (?![eE][+-]?\d) so that scientific notation like 1e5 or 2.5e-3 is preserved
+        s = re.sub(r"(?<![a-zA-Z0-9_.])(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*(?![eE][+-]?\d)([a-zA-Z_]\w*)", r"\1*\2", s)
 
         return s
 
@@ -304,9 +336,17 @@ class ExpressionEvaluator:
                     raise ZeroDivisionError("Cannot divide by zero (modulo)")
                 return left % right
             elif isinstance(node.op, ast.Pow):
-                # Guard against dangerous huge powers that freeze execution
-                if abs(left) > 1 and right > 10000:
+                # Guard against dangerous huge powers that freeze execution or cause string-conversion DoS
+                if abs(left) > 1 and abs(right) > 308:
                     raise OverflowError("Exponent too large to evaluate")
+                if abs(left) > 1 and right > 0:
+                    try:
+                        if math.log10(abs(left)) * right > 308:
+                            raise OverflowError("Result too large (overflow)")
+                    except (OverflowError, ValueError):
+                        raise OverflowError("Result too large (overflow)")
+                if left < 0 and isinstance(right, float) and not right.is_integer():
+                    raise ValueError("Real numbers only: negative base with fractional exponent")
                 try:
                     res = left ** right
                     if isinstance(res, complex):
@@ -347,11 +387,29 @@ class ExpressionEvaluator:
         if not expr or not expr.strip():
             return False, "Empty expression"
 
-        try:
-            # Check balanced parentheses
-            if expr.count("(") != expr.count(")"):
-                return False, "Unmatched parentheses"
+        if len(expr) > 500:
+            return False, "Expression exceeds maximum length (500 characters)"
 
+        # Check maximum parenthesis nesting depth and balanced parentheses
+        depth = 0
+        max_depth = 0
+        for char in expr:
+            if char == "(":
+                depth += 1
+                if depth > max_depth:
+                    max_depth = depth
+            elif char == ")":
+                depth -= 1
+                if depth < 0:
+                    return False, "Unmatched closing parenthesis"
+
+        if depth != 0:
+            return False, "Unmatched parentheses"
+
+        if max_depth > 30:
+            return False, "Expression nesting too deep (maximum 30 levels)"
+
+        try:
             processed = self.preprocess_expression(expr)
             if not processed:
                 return False, "Empty expression"
@@ -365,11 +423,14 @@ class ExpressionEvaluator:
                     return False, "Result is undefined (NaN)"
                 if math.isinf(result):
                     return False, "Result is infinite (Infinity)"
-                rounded = round(result, 12)
-                if rounded.is_integer():
-                    result = int(rounded)
-                else:
-                    result = rounded
+                if result == 0.0:
+                    result = 0
+                elif abs(result) >= 1e-11:
+                    rounded = round(result, 12)
+                    if rounded.is_integer():
+                        result = int(rounded)
+                    else:
+                        result = rounded
 
             return True, result
 
